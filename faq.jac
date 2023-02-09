@@ -30,7 +30,23 @@ graph faq {
     }
 }
 
-faq_answer_1 = spawn node::faq_state(
-    question="How do I configure my order?",
-    answer="To configure your order, log into your Tesla account.",
-);
+walker init {
+    root {
+        spawn here ++> graph::faq;
+        spawn here walker::ask;
+    }
+}
+
+walker ask {
+    has question;
+    root {
+        question = std.input("AMA > ");
+        take --> node::faq_root;
+    }
+    faq_root {
+        take --> node::faq_state(question==question);
+    }
+    faq_state {:
+        std.out(here.answer);
+    }
+}
