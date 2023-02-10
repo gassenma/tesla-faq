@@ -10,12 +10,12 @@ edge intent_transition {
     has intent;
 }
 
-node vehicle {
-    has plate_numer;
-    can get_plate_numer {
-        report here.plate_number;
-    }
-}
+// node vehicle {
+//     has plate_numer;
+//     can get_plate_numer {
+//         report here.plate_number;
+//     }
+// }
 
 node cai_state {
     has name;
@@ -71,28 +71,28 @@ node dialogue_state:cai_state {
         }
     }
 
-    can init_wlk_ctx {
-        new_wlk_ctx = {
-            "intent": null,
-            "entities": {},
-            "prev_state": null,
-            "next_state": null,
-            "respond": false
-        };
-        if ("entities" in visitor.wlk_ctx) {
-            // Carry over extracted entities from previous interaction
-            new_wlk_ctx["entities"] = visitor.wlk_ctx["entities"];
-        }
-        visitor.wlk_ctx = new_wlk_ctx;
-    }
+    // can init_wlk_ctx {
+    //     new_wlk_ctx = {
+    //         "intent": null,
+    //         "entities": {},
+    //         "prev_state": null,
+    //         "next_state": null,
+    //         "respond": false
+    //     };
+    //     if ("entities" in visitor.wlk_ctx) {
+    //         // Carry over extracted entities from previous interaction
+    //         new_wlk_ctx["entities"] = visitor.wlk_ctx["entities"];
+    //     }
+    //     visitor.wlk_ctx = new_wlk_ctx;
+    // }
     can nlu {}
-    can process {
-        if (visitor.wlk_ctx["prev_state"]): visitor.wlk_ctx["respond"] = true;
-        else {
-            visitor.wlk_ctx["next_state"] = net.root();
-            visitor.wlk_ctx["prev_state"] = here;
-        }
-    }
+    // can process {
+    //     if (visitor.wlk_ctx["prev_state"]): visitor.wlk_ctx["respond"] = true;
+    //     else {
+    //         visitor.wlk_ctx["next_state"] = net.root();
+    //         visitor.wlk_ctx["prev_state"] = here;
+    //     }
+    // }
     can nlg {}
 }
 
@@ -207,82 +207,94 @@ graph tesla_ai {
 walker init {
     root {
         spawn here ++> graph::tesla_ai;
-        spawn here walker::talk;
     }
 }
 
-walker ingest_faq {
-    has kb_file;
-    root: take --> node::faq_root;
-    faq_root {
-        kb = file.load_json(kb_file);
-        for faq in kb {
-            answer = faq["answer"];
-            spawn here ++> node::faq_state(answer=answer);
-        }
-    }
-}
+// walker ingest_faq {
+//     has kb_file;
+//     root: take --> node::faq_root;
+//     faq_root {
+//         kb = file.load_json(kb_file);
+//         for faq in kb {
+//             answer = faq["answer"];
+//             spawn here ++> node::faq_state(answer=answer);
+//         }
+//     }
+// }
 
-walker ask {
-    can use.qa_classify;
-    has question;
-    root {
-        question = std.input(">");
-        take --> node::faq_root;
-    }
-    faq_root {
-        answers = -->.answer;
-        best_answer = use.qa_classify(
-            text = question,
-            classes = answers
-        );
-        take --> node::faq_state(answer==best_answer["match"]);
-    }
-    faq_state {
-        std.out(here.answer);
-    }
-}
+// walker ask {
+//     can use.qa_classify;
+//     has question;
+//     root {
+//         question = std.input(">");
+//         take --> node::faq_root;
+//     }
+//     faq_root {
+//         answers = -->.answer;
+//         best_answer = use.qa_classify(
+//             text = question,
+//             classes = answers
+//         );
+//         take --> node::faq_state(answer==best_answer["match"]);
+//     }
+//     faq_state {
+//         std.out(here.answer);
+//     }
+// }
 
-graph dialogue_system {
-    has anchor dialogue_root;
-    spawn {
-        dialogue_root = spawn node::dialogue_root;
-        test_drive_state = spawn node::test_drive_state;
-        td_confirmation = spawn node::td_confirmation;
-        td_confirmed = spawn node::td_confirmed;
-        td_canceled = spawn node::td_canceled;
+// graph dialogue_system {
+//     has anchor dialogue_root;
+//     spawn {
+//         dialogue_root = spawn node::dialogue_root;
+//         test_drive_state = spawn node::test_drive_state;
+//         td_confirmation = spawn node::td_confirmation;
+//         td_confirmed = spawn node::td_confirmed;
+//         td_canceled = spawn node::td_canceled;
 
-        how_to_order_state = spawn node::how_to_order_state;
+//         how_to_order_state = spawn node::how_to_order_state;
 
-        dialogue_root +[intent_transition(intent="test drive")]+> test_drive_state;
-        test_drive_state +[intent_transition(intent="cancel")]+> td_canceled;
-        test_drive_state +[entity_transition(entities=["name", "address"])]+> td_confirmation;
-        test_drive_state +[intent_transition(intent="provide name or address")]+> test_drive_state;
-        td_confirmation +[intent_transition(intent="yes")]+> td_confirmed;
-        td_confirmation +[intent_transition(intent="no")]+> test_drive_state;
-        td_confirmation +[intent_transition(intent="cancel")]+> td_canceled;
+//         dialogue_root +[intent_transition(intent="test drive")]+> test_drive_state;
+//         test_drive_state +[intent_transition(intent="cancel")]+> td_canceled;
+//         test_drive_state +[entity_transition(entities=["name", "address"])]+> td_confirmation;
+//         test_drive_state +[intent_transition(intent="provide name or address")]+> test_drive_state;
+//         td_confirmation +[intent_transition(intent="yes")]+> td_confirmed;
+//         td_confirmation +[intent_transition(intent="no")]+> test_drive_state;
+//         td_confirmation +[intent_transition(intent="cancel")]+> td_canceled;
 
-        dialogue_root +[intent_transition(intent="order a tesla")]+> how_to_order_state;
-    }
-}
+//         dialogue_root +[intent_transition(intent="order a tesla")]+> how_to_order_state;
+//     }
+// }
 
 walker talk {
-    has question;
-    has wlk_ctx = {};
+    has question, interactive = false;
+    has wlk_ctx = {
+        "intent": null,
+        "entities": {},
+        "prev_state": null,
+        "next_state": null,
+        "respond": false
+    };
     has response;
     root {
         take --> node::dialogue_root;
     }
     cai_state {
-        if (!question) {
+        if (!question and interactive) {
             question = std.input("Question (Ctrl-C to exit)> ");
             here::init_wlk_ctx;
+        } elif (!question and !interactive){
+            std.err("ERROR: question is required for non-interactive mode");
+            disengage;
         }
         here::nlu;
         here::process;
         if (visitor.wlk_ctx["respond"]) {
             here::nlg;
-            std.out(response);
+            if (interactive): std.out(response);
+            else {
+                yield report response;
+                here::init_wlk_ctx;
+            }
             question = null;
             take here;
         } else {
